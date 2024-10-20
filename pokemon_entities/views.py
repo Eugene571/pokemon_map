@@ -31,7 +31,7 @@ def show_all_pokemons(request):
     local_time = localtime()
 
     pokemons = Pokemon.objects.all()
-    pokemon_entities = PokemonEntity.objects.filter(disappear_at__gt=local_time, appear_at__lt=local_time)
+    pokemon_entities = PokemonEntity.objects.filter(disappear_at__gt=local_time, appeared_at__lt=local_time)
 
     for entity in pokemon_entities:
         image_url = request.build_absolute_uri(entity.pokemon.picture.url) if entity.pokemon.picture else DEFAULT_IMAGE_URL
@@ -48,7 +48,7 @@ def show_all_pokemons(request):
         pokemons_on_page.append({
             'pokemon_id': pokemon.id,
             'img_url': img_url,
-            'title': pokemon.title,
+            'title': pokemon.title_ru,
         })
 
     return render(request, 'mainpage.html', context={
@@ -59,19 +59,41 @@ def show_all_pokemons(request):
 
 def show_pokemon(request, pokemon_id):
     pokemon = get_object_or_404(Pokemon, id=pokemon_id)
-
+    local_time = localtime()
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
-
-    pokemon_entities = PokemonEntity.objects.filter(pokemon=pokemon)
+    pokemon_entities = PokemonEntity.objects.filter(pokemon=pokemon,
+                                                    disappear_at__gt=local_time,
+                                                    appeared_at__lt=local_time)
 
     for entity in pokemon_entities:
         image_url = request.build_absolute_uri(entity.pokemon.picture.url) if entity.pokemon.picture else DEFAULT_IMAGE_URL
         add_pokemon(folium_map, entity.lat, entity.lon, image_url)
 
-    return render(request, 'pokemon.html', context={
-        'map': folium_map._repr_html_(),
-        'pokemon': {
-            'title': pokemon.title,
-            'picture': request.build_absolute_uri(pokemon.picture.url) if pokemon.picture else DEFAULT_IMAGE_URL,
+    pokemon_view = {
+        'pokemon_id': pokemon.id,
+        'img_url': request.build_absolute_uri(pokemon.picture.url),
+        'title_ru': pokemon.title_ru,
+        'title_en': pokemon.title_en,
+        'title_jp': pokemon.title_jp,
+        "description": pokemon.description,
+    }
+
+    if pokemon.previous_evolution:
+        pokemon_view['previous_evolution'] = {
+            'pokemon_id': pokemon.previous_evolution.id,
+            'img_url': request.build_absolute_uri(pokemon.previous_evolution.picture.url),
+            'title_ru': pokemon.previous_evolution.title_ru,
+            'title_en': pokemon.previous_evolution.title_en,
+            'title_jp': pokemon.previous_evolution.title_jp
         }
+    next_evolution = pokemon.next_evolutions.all().first()
+    if next_evolution:
+        next_evolution = {
+            'pokemon_id': next_evolution.id,
+            'img_url': request.build_absolute_uri(next_evolution.picture.url),
+            'title_ru': next_evolution.title_ru
+        }
+        pokemon_view['next_evolution'] = next_evolution
+    return render(request, 'pokemon.html', context={
+        'map': folium_map._repr_html_(), 'pokemon': pokemon_view
     })
