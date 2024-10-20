@@ -1,8 +1,8 @@
 import folium
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponseNotFound
 from django.shortcuts import render
 from .models import Pokemon, PokemonEntity
+
 
 MOSCOW_CENTER = [55.751244, 37.618423]
 DEFAULT_IMAGE_URL = (
@@ -32,16 +32,15 @@ def show_all_pokemons(request):
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
 
     for entity in pokemon_entities:
-        add_pokemon(
-            folium_map, entity.lat, entity.lon,
-            entity.pokemon.picture.url if entity.pokemon.picture else DEFAULT_IMAGE_URL
-        )
+        image_url = request.build_absolute_uri(entity.pokemon.picture.url) if entity.pokemon.picture else DEFAULT_IMAGE_URL
+        add_pokemon(folium_map, entity.lat, entity.lon, image_url)
 
     pokemons_on_page = []
     for pokemon in pokemons:
+        img_url = request.build_absolute_uri(pokemon.picture.url) if pokemon.picture else DEFAULT_IMAGE_URL
         pokemons_on_page.append({
             'pokemon_id': pokemon.id,
-            'img_url': pokemon.picture.url if pokemon.picture else DEFAULT_IMAGE_URL,
+            'img_url': img_url,
             'title': pokemon.title,
         })
 
@@ -52,7 +51,6 @@ def show_all_pokemons(request):
 
 
 def show_pokemon(request, pokemon_id):
-
     pokemon = get_object_or_404(Pokemon, id=pokemon_id)
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
@@ -60,15 +58,13 @@ def show_pokemon(request, pokemon_id):
     pokemon_entities = PokemonEntity.objects.filter(pokemon=pokemon)
 
     for entity in pokemon_entities:
-        add_pokemon(
-            folium_map, entity.lat, entity.lon,
-            entity.pokemon.picture.url if entity.pokemon.picture else DEFAULT_IMAGE_URL
-        )
+        image_url = request.build_absolute_uri(entity.pokemon.picture.url) if entity.pokemon.picture else DEFAULT_IMAGE_URL
+        add_pokemon(folium_map, entity.lat, entity.lon, image_url)
 
     return render(request, 'pokemon.html', context={
         'map': folium_map._repr_html_(),
         'pokemon': {
             'title': pokemon.title,
-            'picture': pokemon.picture.url if pokemon.picture else DEFAULT_IMAGE_URL,
+            'picture': request.build_absolute_uri(pokemon.picture.url) if pokemon.picture else DEFAULT_IMAGE_URL,
         }
     })
